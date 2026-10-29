@@ -2,5 +2,7 @@
   <Folder Name="/Solution Items/">
     <File Path=".gitignore" />
   </Folder>
+  <Project Path="UnifiedDocumentViewer.MockSystems/UnifiedDocumentViewer.MockSystems.csproj" />
+  <Project Path="UnifiedDocumentViewer.UnitTests/UnifiedDocumentViewer.UnitTests.csproj" />
   <Project Path="UnifiedDocumentViewer/UnifiedDocumentViewer.csproj" />
 </Solution>

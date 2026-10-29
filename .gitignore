@@ -1,3 +1,9 @@
 .vs/
 *.vs/
 obj
+*.db
+*.db-shm
+*.db-wal
+bin/
+obj/
+*.tmp

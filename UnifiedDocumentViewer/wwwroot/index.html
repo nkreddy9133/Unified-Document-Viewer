@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unified Document Viewer</title>
+  <style>
+    :root { color-scheme: light; font-family: Segoe UI, sans-serif; }
+    body { margin: 0; background: #f4f6f8; color: #17202a; }
+    main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+    .panel { background: white; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 2px 8px #0001; }
+    form { display: flex; gap: .75rem; flex-wrap: wrap; }
+    input { flex: 1 1 320px; padding: .7rem; border: 1px solid #aab4be; border-radius: 4px; font-size: 1rem; }
+    button { padding: .7rem 1.2rem; border: 0; border-radius: 4px; background: #1769aa; color: white; cursor: pointer; font-size: 1rem; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #message { margin-top: 1rem; }
+    .error { color: #a12622; }
+    .source { display: inline-block; margin: .25rem .5rem .25rem 0; padding: .45rem .7rem; border-radius: 4px; background: #e8f5e9; }
+    .source.failed { background: #ffebee; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { padding: .7rem; border-bottom: 1px solid #e1e5e8; text-align: left; vertical-align: top; }
+    th { background: #eef2f5; }
+    a { color: #1769aa; }
+    .muted { color: #5f6b75; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <h1>Unified Document Viewer</h1>
+      <p class="muted">Search Sales and Service documents for a vehicle VIN.</p>
+      <form id="search-form">
+        <input id="vin" name="vin" placeholder="VIN-SHARED-001" required maxlength="17" autocomplete="off">
+        <button id="search-button" type="submit">Search</button>
+      </form>
+      <div id="message" role="status"></div>
+    </section>
+
+    <section id="results" class="panel" hidden>
+      <h2>Search results</h2>
+      <div id="source-status"></div>
+      <p id="result-summary" class="muted"></p>
+      <table>
+        <thead>
+          <tr>
+            <th>File name</th>
+            <th>Document type</th>
+            <th>Date</th>
+            <th>Source</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody id="documents"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('search-form');
+    const vinInput = document.getElementById('vin');
+    const button = document.getElementById('search-button');
+    const message = document.getElementById('message');
+    const results = document.getElementById('results');
+    const sourceStatus = document.getElementById('source-status');
+    const summary = document.getElementById('result-summary');
+    const documents = document.getElementById('documents');
+
+    const escapeHtml = value => String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const vin = vinInput.value.trim();
+      message.textContent = '';
+      message.className = '';
+      results.hidden = true;
+      button.disabled = true;
+
+      try {
+        const response = await fetch(`/api/documents/${encodeURIComponent(vin)}`);
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.detail || payload.title || payload || `Request failed with HTTP ${response.status}.`);
+        }
+
+        sourceStatus.innerHTML = Object.entries(payload.sources)
+          .map(([source, status]) => `<span class="source ${status.succeeded ? '' : 'failed'}"><strong>${escapeHtml(source)}</strong>: ${status.succeeded ? 'Available' : escapeHtml(status.error)}</span>`)
+          .join('');
+        summary.textContent = `${payload.documents.length} document(s) found for ${payload.vin}.`;
+        documents.innerHTML = payload.documents.length
+          ? payload.documents.map(document => `<tr><td>${escapeHtml(document.fileName)}</td><td>${escapeHtml(document.documentType)}</td><td>${new Date(document.documentDate).toLocaleDateString()}</td><td>${escapeHtml(document.sourceSystem)}</td><td>${document.downloadUrl ? `<a href="${escapeHtml(document.downloadUrl)}" target="_blank" rel="noreferrer">Open</a>` : '—'}</td></tr>`).join('')
+          : '<tr><td colspan="5" class="muted">No documents were returned.</td></tr>';
+        results.hidden = false;
+      } catch (error) {
+        message.textContent = error.message || 'The search failed.';
+        message.className = 'error';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
